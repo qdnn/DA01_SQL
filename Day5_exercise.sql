@@ -9,6 +9,8 @@ COUNT(CITY) - COUNT(DISTINCT(CITY))
 FROM STATION;
 
 --- Bai tap 3
+SELECT CEILING(AVG(Salary) - AVG(REPLACE(Salary, '0', '')))
+FROM EMPLOYEES;
 
 --- Bai tap 4
 SELECT 
