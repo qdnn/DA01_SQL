@@ -17,6 +17,7 @@ END AS triangle
 FROM Triangle;
 
 --- Bai tap 3
+-- C1
 SELECT 
 ROUND(100.0 *
 SUM(CASE
@@ -25,13 +26,13 @@ SUM(CASE
 END)/ COUNT(*) , 1) AS uncategorised_call_pct
 FROM callers;
 
--- Em co thac mac sao em cast ve decimal thi ket qua van khong ra a
+-- C2:
 SELECT 
 ROUND (
-CAST(100 * SUM(CASE
+100 * CAST(SUM(CASE
   WHEN call_category IS NULL OR call_category = 'n/a'
   THEN 1 ELSE 0
-END)/ COUNT(*) AS DECIMAl) , 1)
+END) AS DECIMAl)/ CAST(COUNT(*) AS DECIMAl) , 1)
 AS uncategorised_call_pct
 FROM callers;
 
