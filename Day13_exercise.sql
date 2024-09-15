@@ -13,23 +13,21 @@ WHERE dupl_count >= 2;
 --- Bai tap 2
 SELECT category, product, total_spend
 FROM (
-SELECT category, product, 
-SUM(spend) AS total_spend
+SELECT category, product, SUM(spend) AS total_spend
 FROM product_spend
 WHERE EXTRACT(year FROM transaction_date) = 2022
-GROUP BY category, product
+GROUP BY category, product   
 ) AS category_spend
 WHERE (
 SELECT COUNT(*)
 FROM (
-SELECT category, product, 
-SUM(spend) AS total_spend
-FROM product_spend
-WHERE EXTRACT(year FROM transaction_date) = 2022
-GROUP BY category, product
+SELECT category, product        
+FROM product_spend       
+WHERE EXTRACT(year FROM transaction_date) = 2022        
+GROUP BY category, product       
 ) AS inner_query
-WHERE inner_query.category = category_spend.category
-AND inner_query.total_spend >= category_spend.total_spend
+WHERE inner_query.category = category_spend.category    
+AND inner_query.product >= category_spend.product    
 ) <= 2
 ORDER BY category, total_spend DESC;
 
@@ -73,20 +71,21 @@ SELECT LEFT(CAST(trans_date AS VARCHAR), 7) AS month, country,
 COUNT(*) AS trans_count,
 SUM(amount) AS trans_total_amount,
 SUM(CASE
-            WHEN state = 'approved' THEN 1 
-            WHEN state = 'declined' THEN 0 
-    END) AS approved_count,
-    SUM(CASE
-            WHEN state = 'approved' THEN amount 
-            WHEN state = 'declined' THEN 0 
-    END) AS approved_total_amount
+         WHEN state = 'approved' THEN 1 
+         WHEN state = 'declined' THEN 0 
+END) AS approved_count,
+SUM(CASE
+         WHEN state = 'approved' THEN amount 
+         WHEN state = 'declined' THEN 0 
+END) AS approved_total_amount
 FROM Transactions
 GROUP BY  month, country;
 
 --- Bai tap 7
 SELECT quantity , price , product_id , year AS first_year
 FROM Sales
-WHERE (product_id, year)  IN (
+WHERE (product_id, year)  IN 
+(
 SELECT product_id, MIN(year)
 FROM Sales GROUP BY product_id
 );
@@ -94,9 +93,8 @@ FROM Sales GROUP BY product_id
 --- Bai tap 8
 SELECT customer_id 
 FROM Customer 
-WHERE product_key IN (
-SELECT product_key FROM Product
-)
+WHERE product_key IN 
+(SELECT product_key FROM Product)
 GROUP BY customer_id
 HAVING COUNT(DISTINCT(product_key)) = (SELECT COUNT(*) FROM Product);
 
@@ -123,7 +121,29 @@ FROM duplicate_table
 WHERE dupl_count >= 2;
 
 --- Bai tap 11
+WITH
+user_rating AS
+(SELECT a.name AS results, a.user_id,
+COUNT(b.rating)
+FROM Users AS a JOIN MovieRating AS b
+ON a.user_id = b.user_id
+GROUP BY a.name, a.user_id 
+ORDER BY count DESC, results ASC
+LIMIT 1)
+, rating_score AS
+(SELECT c.title AS results, c.movie_id,
+AVG(b.rating)
+FROM Movies AS c JOIN MovieRating AS b
+ON c.movie_id  = b.movie_id 
+WHERE EXTRACT(year FROM created_at) = 2020
+AND EXTRACT(month FROM created_at) = 2
+GROUP BY c.movie_id, c.title
+ORDER BY avg DESC, results ASC 
+LIMIT 1) 
 
+SELECT results FROM user_rating
+UNION ALL
+SELECT results FROM rating_score; 
 
 --- Bai tap 12
 SELECT id, COUNT(*) AS num
