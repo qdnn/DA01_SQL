@@ -53,7 +53,35 @@ ORDER BY id;
 --- Bai tap 4:
 
 
+--- Bai tap 8:
+-- C1:
+SELECT product_id, new_price AS price
+FROM Products
+WHERE (product_id, change_date) IN
+(
+SELECT product_id, MAX(change_date) 
+FROM Products
+WHERE change_date <= '2019-08-16'
+GROUP BY product_id
+)
+UNION ALL
+SELECT product_id, 10 AS price
+FROM Products
+GROUP BY product_id
+HAVING MIN(change_date) > '2019-08-16';
 
+-- C2: 
+SELECT DISTINCT(a.*) FROM
+(SELECT product_id, 
+FIRST_VALUE(new_price) OVER (PARTITION BY product_id ORDER BY change_date DESC) 
+AS price 
+FROM Products
+WHERE change_date <= '2019-08-16') AS a
+UNION ALL
+SELECT product_id, 10 AS price
+FROM Products
+GROUP BY product_id
+HAVING MIN(change_date) > '2019-08-16';
 
 
 
