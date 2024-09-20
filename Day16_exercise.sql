@@ -52,6 +52,31 @@ ORDER BY id;
 
 --- Bai tap 4:
 
+--- Bai tap 5:
+
+
+--- Bai tap 6:
+SELECT a.name AS Employee, a.salary AS Salary, b.name AS Department
+FROM
+(SELECT *,
+DENSE_RANK() OVER (PARTITION BY departmentId ORDER BY salary DESC) AS stt
+FROM Employee) AS a
+JOIN Department AS b 
+ON a.departmentId = b.id
+WHERE a.stt <= 3;
+
+--- Bai tap 7:
+SELECT twt.person_name
+FROM
+(SELECT a.*, 
+SUM(a.weight) OVER (ORDER BY a.stt) AS total_weight
+FROM
+(SELECT *,
+ROW_NUMBER() OVER (ORDER BY turn) AS stt
+FROM Queue) AS a) AS twt
+WHERE twt.total_weight <= 1000
+ORDER BY twt.total_weight DESC
+LIMIT 1;
 
 --- Bai tap 8:
 -- C1:
@@ -82,11 +107,6 @@ SELECT product_id, 10 AS price
 FROM Products
 GROUP BY product_id
 HAVING MIN(change_date) > '2019-08-16';
-
-
-
-
-
 
 
 
