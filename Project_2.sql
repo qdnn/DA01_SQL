@@ -82,6 +82,22 @@ GROUP BY FORMAT_DATE('%Y-%m-%d', b.delivered_at), a.category
 ORDER BY ROUND(SUM(a.retail_price), 2) DESC;
 
 
+--- Dashboard
+WITH vw_ecommerce_analyst AS 
+(SELECT FORMAT_DATE('%m', a.created_at) AS month, FORMAT_DATE('%Y', a.created_at) AS year,
+c.category AS Product_category,
+SUM(b.sale_price) OVER (PARTITION BY FORMAT_DATE('%m', a.created_at), FORMAT_DATE('%Y', a.created_at)) AS TPV,
+COUNT(b.order_id) OVER (PARTITION BY FORMAT_DATE('%m', a.created_at), FORMAT_DATE('%Y', a.created_at)) AS TPO,
+SUM(c.cost) OVER (PARTITION BY FORMAT_DATE('%m', a.created_at), FORMAT_DATE('%Y', a.created_at)) AS Total_cost,
+(SUM(b.sale_price) OVER (PARTITION BY FORMAT_DATE('%m', a.created_at), FORMAT_DATE('%Y', a.created_at)) - SUM(c.cost) OVER (PARTITION BY FORMAT_DATE('%m', a.created_at), FORMAT_DATE('%Y', a.created_at))) AS Total_profit,
+(SUM(b.sale_price) OVER (PARTITION BY FORMAT_DATE('%m', a.created_at), FORMAT_DATE('%Y', a.created_at)) - SUM(c.cost) OVER (PARTITION BY FORMAT_DATE('%m', a.created_at), FORMAT_DATE('%Y', a.created_at)))/SUM(c.cost) OVER (PARTITION BY FORMAT_DATE('%m', a.created_at), FORMAT_DATE('%Y', a.created_at)) AS Profit_to_cost_ratio
+FROM bigquery-public-data.thelook_ecommerce.orders AS a
+JOIN bigquery-public-data.thelook_ecommerce.order_items AS b ON a.order_id = b.order_id
+JOIN bigquery-public-data.thelook_ecommerce.products AS c ON b.id = c.id
+ORDER BY month, year)
+SELECT *, LEAD(TPV) OVER (PARTITION BY year ORDER BY month) - TPV AS Revenue_growth,
+LEAD(TPO) OVER (PARTITION BY year ORDER BY month) - TPO AS Order_growth
+FROM vw_ecommerce_analyst;
 
 
 
