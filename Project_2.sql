@@ -90,42 +90,50 @@ SUM(b.sale_price) OVER (PARTITION BY FORMAT_DATE('%Y-%m', a.created_at), c.categ
 COUNT(b.order_id) OVER (PARTITION BY FORMAT_DATE('%Y-%m', a.created_at), c.category) AS TPO,
 SUM(c.cost) OVER (PARTITION BY FORMAT_DATE('%Y-%m', a.created_at), c.category) AS Total_cost,
 (SUM(b.sale_price) OVER (PARTITION BY FORMAT_DATE('%Y-%m', a.created_at), c.category) - SUM(c.cost) OVER (PARTITION BY FORMAT_DATE('%Y-%m', a.created_at), c.category)) AS Total_profit,
-(SUM(b.sale_price) OVER (PARTITION BY FORMAT_DATE('%Y-%m', a.created_at), c.category) - SUM(c.cost) OVER (PARTITION BY FORMAT_DATE('%Y-%m', a.created_at), c.category))
-  /SUM(c.cost) OVER (PARTITION BY FORMAT_DATE('%Y-%m', a.created_at), c.category) AS Profit_to_cost_ratio
+(SUM(b.sale_price) OVER (PARTITION BY FORMAT_DATE('%Y-%m', a.created_at), c.category) - SUM(c.cost) OVER (PARTITION BY FORMAT_DATE('%Y-%m', a.created_at), c.category))/SUM(c.cost) OVER (PARTITION BY FORMAT_DATE('%Y-%m', a.created_at), c.category) AS Profit_to_cost_ratio
 FROM bigquery-public-data.thelook_ecommerce.orders AS a
 JOIN bigquery-public-data.thelook_ecommerce.order_items AS b ON a.order_id = b.order_id
 JOIN bigquery-public-data.thelook_ecommerce.products AS c ON b.id = c.id
-ORDER BY month, year),
-new_dataset AS
-(SELECT *, LEAD(TPV) OVER (PARTITION BY year ORDER BY month) - TPV AS Revenue_growth,
+ORDER BY month, year)
+
+SELECT *, LEAD(TPV) OVER (PARTITION BY year ORDER BY month) - TPV AS Revenue_growth,
 LEAD(TPO) OVER (PARTITION BY year ORDER BY month) - TPO AS Order_growth,
 MIN(month) OVER (PARTITION BY year) AS first_day
-FROM vw_ecommerce_analyst),
+FROM vw_ecommerce_analyst;
 
--- Tạo retention cohort analysis
-cohort_data AS
-(SELECT *,
-    ((CAST(LEFT(month, 4) AS INT64) - CAST(LEFT(first_day, 4) AS INT64)) * 12) + 
-    (CAST(SUBSTRING(month, 6) AS INT64) - CAST(SUBSTRING(first_day, 6) AS INT64)) AS index
-FROM 
-    new_dataset),
+--- Tạo retention cohort analysis
+/* Ngày mua hàng đầu tiên của từng KH => cohort_date
+Tìm index = tháng (ngày mua hàng - ngày đầu tiên) + 1
+Count số lượng KH tại mỗi cohort_date và index tương ứng
+Pivot table */
 
-cohort_revenue AS
-(SELECT month,
-    SUM(CASE WHEN index = 0 THEN TPV ELSE 0 END) AS m0,
-    SUM(CASE WHEN index = 1 THEN TPV ELSE 0 END) AS m1,
-    SUM(CASE WHEN index = 2 THEN TPV ELSE 0 END) AS m2,
-    SUM(CASE WHEN index = 3 THEN TPV ELSE 0 END) AS m3
-FROM cohort_data
-GROUP BY month)
-
--- Retention cohort
-SELECT month,
+WITH a AS 
+(SELECT user_id, order_id, 
+FORMAT_DATE('%Y-%m',first_purchase_date) AS cohort_date, purchase_date,
+((EXTRACT (year FROM purchase_date) - EXTRACT (year FROM first_purchase_date))*12)
++ (EXTRACT (month FROM purchase_date) - EXTRACT (month FROM first_purchase_date)) 
+AS index
+FROM(
+SELECT user_id, MIN(DATE(created_at)) OVER (PARTITION BY user_id) AS first_purchase_date,
+DATE(created_at) AS purchase_date, order_id
+FROM bigquery-public-data.thelook_ecommerce.order_items
+ORDER BY user_id)) ,
+b AS 
+(SELECT cohort_date, index,
+COUNT(DISTINCT(user_id)) AS cnt FROM a
+GROUP BY cohort_date, index),
+customer_cohort AS
+(SELECT cohort_date, 
+SUM(CASE WHEN index = 0 THEN cnt ELSE 0 END) AS m0,
+SUM(CASE WHEN index = 1 THEN cnt ELSE 0 END) AS m1,
+SUM(CASE WHEN index = 2 THEN cnt ELSE 0 END) AS m2,
+SUM(CASE WHEN index = 3 THEN cnt ELSE 0 END) AS m3
+FROM b
+GROUP BY cohort_date)
+SELECT cohort_date,
 ROUND(100.00* m0/m0, 2) ||'%' AS m0,
 ROUND(100.00* m1/m0, 2) ||'%' AS m1,
 ROUND(100.00* m2/m0, 2) ||'%' AS m2,
 ROUND(100.00* m3/m0, 2) ||'%' AS m3
-FROM cohort_revenue;
-
-
+FROM customer_cohort;
 
