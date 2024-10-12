@@ -56,4 +56,44 @@ FROM twt_UK_product;
 
 --- 5. Ai là khách hàng tốt nhất, phân tích dựa vào RFM 
 -- (sử dụng lại bảng customer_segment ở buổi học 23)
+SELECT * FROM customer;
+SELECT * FROM sales;
+SELECT * FROM segment_score;
+
+-- Tính giá trị R-F-M
+WITH twt_rfm_cal AS
+(SELECT a.customer_id,
+current_date - MAX(order_date) AS R,
+COUNT(b.order_id) AS F,
+SUM(b.sales) AS M
+FROM customer AS a
+JOIN sales AS b 
+ON a.customer_id = a.customer_id
+GROUP BY a.customer_id)
+
+-- Chia các giá trị thành các khoảng trên thang điểm 1-5
+, twt_rfm_score AS
+(SELECT customer_id,
+ntile(5) OVER (ORDER BY R DESC) AS R_score,
+ntile(5) OVER (ORDER BY F) AS F_score,
+ntile(5) OVER (ORDER BY M) AS M_score
+FROM twt_rfm_cal)
+
+-- Phân nhóm theo 125 tổ hợp R-F-M
+, twt_rfm_combine AS
+(SELECT customer_id,
+CAST(R_score AS VARCHAR) || CAST(F_score AS VARCHAR) || CAST(M_score AS VARCHAR) AS rfm_score
+FROM twt_rfm_score)
+
+-- Danh sách nhóm KH tốt nhất
+SELECT c.customer_id, c.rfm_score, d.segment
+FROM twt_rfm_combine AS c
+JOIN segment_score AS d
+ON c.rfm_score = d.scores
+WHERE rfm_score = '555' OR rfm_score = '554' 
+OR rfm_score = '545' OR rfm_score = '455'
+OR rfm_score = '445' OR rfm_score = '454' OR rfm_score = '544';
+
+
+
 
